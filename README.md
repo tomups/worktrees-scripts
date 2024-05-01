@@ -1,5 +1,7 @@
 # Scripts to help using worktrees with bare repos
 
+More information in <https://www.tomups.com/worktrees>
+
 The commands work from either the parent directory or from inside a worktree.
 
 They can only be used with a repo cloned with `git wtclone`.
