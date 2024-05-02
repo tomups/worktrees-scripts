@@ -7,13 +7,6 @@ GREEN="\033[0;32m"
 YELLOW="\033[0;33m"
 CLEAR="\033[0m"
 
-# Examples of call:
-# git-clone-bare-for-worktrees git@github.com:name/repo.git
-# => Clones to a /repo directory
-#
-# git-clone-bare-for-worktrees git@github.com:name/repo.git my-repo
-# => Clones to a /my-repo directory
-
 url=$1
 basename=${url##*/}
 name=${2:-${basename%.*}}
