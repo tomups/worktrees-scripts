@@ -89,6 +89,10 @@ function collect_and_show_worktrees() {
     local table_data=()
     while IFS= read -r line; do
       local path=$(echo "$line" | awk '{print $1}')
+      if [[ "$path" == *".bare"* ]]; then
+        continue
+      fi
+
       local dir_name=$(basename "$path")
       local rest_of_line=$(echo "$line" | cut -d' ' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
