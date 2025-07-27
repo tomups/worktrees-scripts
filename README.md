@@ -29,3 +29,7 @@ This will also copy some untracked files, like node_modules and .env for conveni
 `git wtremove <worktree-name>`
 
 Will remove the worktree, prune it and delete its associated branch.
+
+`git wtlist`
+
+Lists all git worktrees in the current repository with their respective branch information.
