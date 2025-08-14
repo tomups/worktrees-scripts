@@ -163,9 +163,6 @@ function _worktree {
         warn "Unable to run git pull, there may not be an upstream"
     fi
 
-    git -C "$parent_dir/$dirname" pull
-    
-
     # if there was an envrc file, tell direnv that it's ok to run it
     if [ -f "$parent_dir/$dirname/.envrc" ]; then
         direnv allow "$parent_dir/$dirname"
