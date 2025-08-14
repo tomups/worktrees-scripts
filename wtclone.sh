@@ -6,10 +6,53 @@ RED="\033[0;31m"
 GREEN="\033[0;32m"
 YELLOW="\033[0;33m"
 CLEAR="\033[0m"
+VERBOSE=
+
+function usage {
+    cat <<EOF
+Usage: wtclone [-vh] REPO_URL [DIR_NAME]
+Clone a repository into a bare worktree layout.
+
+This will:
+- create a directory named DIR_NAME (defaults to the repo name)
+- clone the repo as a bare repo into .bare
+- fetch all branches
+- add a worktree for the default branch
+
+FLAGS:
+  -h, --help    Print this help
+  -v, --verbose Verbose mode
+EOF
+    kill -INT $$
+}
+
+# Parse flags
+while true; do
+    case $1 in
+        help | -h | --help)
+            usage
+            ;;
+        -v | --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [ -z "$1" ]; then
+    usage
+fi
 
 url=$1
 basename=${url##*/}
 name=${2:-${basename%.*}}
+
+if [ -n "$VERBOSE" ]; then
+    set -x
+fi
 
 mkdir $name
 cd "$name"

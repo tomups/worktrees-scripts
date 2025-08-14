@@ -8,15 +8,12 @@ VERBOSE=
 
 function usage {
     cat <<"EOF"
-rmtree [-vh] <worktree delete>
-
-remove a worktree from a git repository.
+Usage: wtremove [-vh] WORKTREE_NAME
+Removes and prunes a worktree and its branch.
 
 FLAGS:
-
-    -h: print this help
-    -v: verbose mode   
-
+  -h, --help    Print this help
+  -v, --verbose Verbose mode   
 EOF
     exit 1
 }

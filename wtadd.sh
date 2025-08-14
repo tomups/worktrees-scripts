@@ -13,13 +13,17 @@ echo $1
 
 function usage {
     cat <<EOF
-worktree [-v] <branch name>
+Usage: wtadd [-vh] WORKTREE_NAME [BRANCH_NAME]
+Create a git worktree named WORKTREE_NAME based on BRANCH_NAME.
+If no BRANCH_NAME is provided, it will default to the current branch.
 
-create a git worktree with <branch name>. Will create a worktree if one isn't
-found that matches the given name.
+Will copy over any .env, .envrc, .tool-versions, or mise.toml files to the 
+new worktree as well as node_modules.
 
-Will copy over any .env, .envrc, or .tool-versions files to the new worktree
-as well as node_modules
+FLAGS:
+  -h, --help    Print this help
+  -v, --verbose Verbose mode   
+
 EOF
     kill -INT $$
 }

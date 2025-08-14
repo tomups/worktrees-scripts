@@ -16,20 +16,27 @@ bash <(curl -s https://raw.githubusercontent.com/tomups/worktrees-scripts/main/i
 
 ## Usage
 
-`git wtclone <remote-url> <destination>`
+`git wtclone <remote-url> [destination]`
 
-Clones a repo as bare, and creates a worktree for the main branch. If destination is omitted, it will be created in a folder with the same name as the repo, in the current directory.
+Clone a repository into a bare worktree layout.
 
-`git wtadd <worktree-name> <branch>`
+This will:
+- create a directory named destination (defaults to the repo name)
+- clone the repo as a bare repo into `.bare`
+- fetch all branches
+- add a worktree for the default branch
 
-Adds a worktree to the current repo, with the specified name and branch. If the branch is omitted, it will be created from the current branch.
+`git wtadd <worktree-name> [branch]`
 
-This will also copy some untracked files, like node_modules and .env for convenience. If you are in OSX or FreeBSD it will use Copy on Write to save space.
+Create a git worktree named `worktree-name` based on `branch`. If no branch is provided, it defaults to the current branch.
+
+Also copies over untracked convenience files to the new worktree: `.env`, `.envrc`, `.tool-versions`, `mise.toml`, and the root `node_modules` directory. On macOS or *BSD, Copy-on-Write is used when available to save space.
 
 `git wtremove <worktree-name>`
 
-Will remove the worktree, prune it and delete its associated branch.
+Remove a worktree, prune it, and delete its associated branch.
 
 `git wtlist`
 
-Lists all git worktrees in the current repository with their respective branch information.
+List all git worktrees in the current repository with their respective branch information.
+

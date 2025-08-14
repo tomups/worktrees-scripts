@@ -11,14 +11,12 @@ VERBOSE=
 
 function usage {
     cat <<EOF
-wtlist [-vh]
-
+Usage: wtlist [-vh]
 Lists all git worktrees in the current repository with their respective branch information.
-Provides a clear tabular overview of existing worktrees, showing their names and branches.
 
 FLAGS:
-  -h, --help      Print this help
-  -v, --verbose   Verbose mode
+  -h, --help    Print this help
+  -v, --verbose Verbose mode
 EOF
     kill -INT $$
 }
