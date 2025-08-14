@@ -159,7 +159,9 @@ function _worktree {
     unset IFS
 
     # pull the most recent version of the remote
-    if ! git -C "$parent_dir/$dirname" pull; then
+    # ensure any inherited bare-repo env (GIT_DIR/GIT_WORK_TREE) doesn't leak into this call
+    # silence stdout/stderr from git; only show our warning on failure
+    if ! env -u GIT_DIR -u GIT_WORK_TREE git -C "$parent_dir/$dirname" pull >/dev/null 2>&1; then
         warn "Unable to run git pull, there may not be an upstream"
     fi
 
