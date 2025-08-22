@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Define scripts to work with
 SCRIPTS=("wtadd.sh" "wtremove.sh" "wtclone.sh" "wtlist.sh")
 
