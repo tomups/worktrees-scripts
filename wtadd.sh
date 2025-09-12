@@ -127,12 +127,19 @@ function _worktree {
         fi
     fi
 
+    # Determine copy source path before copying files
+    if $is_worktree; then
+        copy_source="."
+    else
+        copy_source=./$(git rev-parse --abbrev-ref HEAD)
+    fi
+
     # Find untracked files that we want to copy to the new worktree
 
     # packages in node_modules packages can have sub-node-modules packages, and
     # we don't want to copy them; only copy the root node_modules directory
-    if [ -d "node_modules" ]; then
-      cp_cow node_modules "$parent_dir/$dirname"/node_modules
+    if [ -d "$copy_source/node_modules" ]; then
+      cp_cow "$copy_source/node_modules" "$parent_dir/$dirname"/node_modules
     fi
 
     # this will fail for any files with \n in their names. don't do that.
@@ -154,11 +161,6 @@ function _worktree {
     #
     # shellcheck disable=SC2207
     find_variant=$(detect_find_variant)
-    if $is_worktree; then
-        copy_source="."
-    else
-        copy_source=./$(git rev-parse --abbrev-ref HEAD)
-    fi
     
     case "$find_variant" in
         "bsd")
