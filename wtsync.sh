@@ -59,9 +59,9 @@ function cp_cow {
 
 # Detect find variant (same as wtadd.sh)
 function detect_find_variant {
-    if find -E /dev/null -maxdepth 0 2>/dev/null; then
+    if find -E /dev/null -maxdepth 0 >/dev/null 2>&1; then
         echo "bsd"
-    elif find /dev/null -maxdepth 0 -regextype posix-extended 2>/dev/null; then
+    elif find /dev/null -maxdepth 0 -regextype posix-extended >/dev/null 2>&1; then
         echo "gnu"
     else
         echo "basic"
@@ -133,24 +133,34 @@ function sync_files {
     fi
     
     # Find and copy other untracked files
-    local IFS=$'\n'
     local find_variant=$(detect_find_variant)
     local files_to_copy=()
+    
+    # Set IFS for proper array handling
+    IFS=$'\n'
+    
     
     case "$find_variant" in
     "bsd")
         files_to_copy=($(find -E "$source" -maxdepth 1 -not -path '*node_modules*' -and \
-            -iregex '.*\/\.(envrc|env|env\.local|tool-versions|mise\.toml)'))
+            -iregex '.*\/\.(envrc|env(\.local)?|tool-versions|mise\.toml)'))
         ;;
     "gnu")
         files_to_copy=($(find "$source" -maxdepth 1 -not -path '*node_modules*' -and \
-            -regextype posix-extended -iregex '.*\/\.(envrc|env|env\.local|tool-versions|mise\.toml)'))
+            -regextype posix-extended -iregex '.*\/\.(envrc|env(\.local)?|tool-versions|mise\.toml)'))
         ;;
     "basic")
         files_to_copy=($(find "$source" -maxdepth 1 -not -path '*node_modules*' \
             \( -name '.envrc' -o -name '.env' -o -name '.env.local' -o -name '.tool-versions' -o -name 'mise.toml' \)))
         ;;
     esac
+    
+    # Reset IFS
+    unset IFS
+    
+    if [ -n "$VERBOSE" ]; then
+        info "  Found ${#files_to_copy[@]} files to potentially copy: ${files_to_copy[*]}"
+    fi
     
     for f in "${files_to_copy[@]}"; do
         local filename=$(basename "$f")
