@@ -64,6 +64,19 @@ function cp_cow {
 }
 
 
+# Detect which find variant is available by testing capabilities
+function detect_find_variant {
+    # Test for BSD find (supports -E flag)
+    if find -E /dev/null -maxdepth 0 2>/dev/null; then
+        echo "bsd"
+    # Test for GNU find (supports --regextype)
+    elif find /dev/null -maxdepth 0 -regextype posix-extended 2>/dev/null; then
+        echo "gnu"
+    else
+        echo "basic"
+    fi
+}
+
 # Create a worktree from a given branchname, and copy some untracked files
 function _worktree {
     if [ -z "$1" ]; then
@@ -114,12 +127,19 @@ function _worktree {
         fi
     fi
 
+    # Determine copy source path before copying files
+    if $is_worktree; then
+        copy_source="."
+    else
+        copy_source=./$(git rev-parse --abbrev-ref HEAD)
+    fi
+
     # Find untracked files that we want to copy to the new worktree
 
     # packages in node_modules packages can have sub-node-modules packages, and
     # we don't want to copy them; only copy the root node_modules directory
-    if [ -d "node_modules" ]; then
-      cp_cow node_modules "$parent_dir/$dirname"/node_modules
+    if [ -d "$copy_source/node_modules" ]; then
+      cp_cow "$copy_source/node_modules" "$parent_dir/$dirname"/node_modules
     fi
 
     # this will fail for any files with \n in their names. don't do that.
@@ -140,19 +160,23 @@ function _worktree {
     # other way around
     #
     # shellcheck disable=SC2207
-    platform=`uname`
-    if $is_worktree; then
-        copy_source="."
-    else
-        copy_source=./$(git rev-parse --abbrev-ref HEAD)
-    fi
-    if [ "$platform" = "Darwin" ]; then
-        files_to_copy=( $(find -E $copy_source -not -path '*node_modules*' -and \
-                -iregex '.*\/\.(envrc|env|env.local|tool-versions|mise.toml)' ) )
-    else
-        files_to_copy=( $(find $copy_source -not -path '*node_modules*' -and \
-                -regextype posix-extended -iregex '.*\/\.(envrc|env|env.local|tool-versions|mise.toml)' ) )
-    fi
+    find_variant=$(detect_find_variant)
+    
+    case "$find_variant" in
+        "bsd")
+            files_to_copy=( $(find -E $copy_source -not -path '*node_modules*' -and \
+                    -iregex '.*\/\.(envrc|env|env.local|tool-versions|mise.toml)' ) )
+            ;;
+        "gnu")
+            files_to_copy=( $(find $copy_source -not -path '*node_modules*' -and \
+                    -regextype posix-extended -iregex '.*\/\.(envrc|env|env.local|tool-versions|mise.toml)' ) )
+            ;;
+        "basic")
+            # Fallback to basic find without extended regex - use simple name matching
+            files_to_copy=( $(find $copy_source -not -path '*node_modules*' \
+                    \( -name '.envrc' -o -name '.env' -o -name '.env.local' -o -name '.tool-versions' -o -name 'mise.toml' \) ) )
+            ;;
+    esac
 
     for f in "${files_to_copy[@]}"; do
       target_path="${f#$copy_source/}"
