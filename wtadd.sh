@@ -64,6 +64,19 @@ function cp_cow {
 }
 
 
+# Detect which find variant is available by testing capabilities
+function detect_find_variant {
+    # Test for BSD find (supports -E flag)
+    if find -E /dev/null -maxdepth 0 2>/dev/null; then
+        echo "bsd"
+    # Test for GNU find (supports --regextype)
+    elif find /dev/null -maxdepth 0 -regextype posix-extended 2>/dev/null; then
+        echo "gnu"
+    else
+        echo "basic"
+    fi
+}
+
 # Create a worktree from a given branchname, and copy some untracked files
 function _worktree {
     if [ -z "$1" ]; then
@@ -140,19 +153,28 @@ function _worktree {
     # other way around
     #
     # shellcheck disable=SC2207
-    platform=`uname`
+    find_variant=$(detect_find_variant)
     if $is_worktree; then
         copy_source="."
     else
         copy_source=./$(git rev-parse --abbrev-ref HEAD)
     fi
-    if [ "$platform" = "Darwin" ]; then
-        files_to_copy=( $(find -E $copy_source -not -path '*node_modules*' -and \
-                -iregex '.*\/\.(envrc|env|env.local|tool-versions|mise.toml)' ) )
-    else
-        files_to_copy=( $(find $copy_source -not -path '*node_modules*' -and \
-                -regextype posix-extended -iregex '.*\/\.(envrc|env|env.local|tool-versions|mise.toml)' ) )
-    fi
+    
+    case "$find_variant" in
+        "bsd")
+            files_to_copy=( $(find -E $copy_source -not -path '*node_modules*' -and \
+                    -iregex '.*\/\.(envrc|env|env.local|tool-versions|mise.toml)' ) )
+            ;;
+        "gnu")
+            files_to_copy=( $(find $copy_source -not -path '*node_modules*' -and \
+                    -regextype posix-extended -iregex '.*\/\.(envrc|env|env.local|tool-versions|mise.toml)' ) )
+            ;;
+        "basic")
+            # Fallback to basic find without extended regex - use simple name matching
+            files_to_copy=( $(find $copy_source -not -path '*node_modules*' \
+                    \( -name '.envrc' -o -name '.env' -o -name '.env.local' -o -name '.tool-versions' -o -name 'mise.toml' \) ) )
+            ;;
+    esac
 
     for f in "${files_to_copy[@]}"; do
       target_path="${f#$copy_source/}"
