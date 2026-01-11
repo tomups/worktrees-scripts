@@ -8,21 +8,30 @@ GREEN="\033[0;32m"
 YELLOW="\033[0;33m"
 CLEAR="\033[0m"
 VERBOSE=
-
-echo $1
+BRANCH_NAME=
+COMMIT_ISH=
 
 function usage {
     cat <<EOF
-Usage: wtadd [-vh] WORKTREE_NAME [BRANCH_NAME]
-Create a git worktree named WORKTREE_NAME based on BRANCH_NAME.
-If no BRANCH_NAME is provided, it will default to the current branch.
+Usage: wtadd [-vh] [-b BRANCH_NAME] [-c COMMIT-ISH] WORKTREE_NAME
+Create a git worktree named WORKTREE_NAME.
 
-Will copy over any .env, .envrc, .tool-versions, or mise.toml files to the 
+Will copy over any .env, .envrc, .tool-versions, or mise.toml files to the
 new worktree as well as node_modules.
 
 FLAGS:
-  -h, --help    Print this help
-  -v, --verbose Verbose mode   
+  -h, --help               Print this help
+  -v, --verbose            Verbose mode
+  -b, --branch BRANCH_NAME Specify branch name for the new worktree
+                          (defaults to WORKTREE_NAME if not provided)
+  -c, --commit COMMIT-ISH  Create worktree from specific commit, tag, or branch
+                          (can be SHA, tag name, or branch reference)
+
+EXAMPLES:
+  wtadd feature-work                    # Creates worktree and branch both named "feature-work"
+  wtadd -b my-feature feature-work      # Creates worktree "feature-work" with branch "my-feature"
+  wtadd -c main experiment              # Creates worktree "experiment" from main branch
+  wtadd -b hotfix -c abc123def urgent   # Creates worktree "urgent" with branch "hotfix" from commit SHA
 
 EOF
     kill -INT $$
@@ -86,44 +95,59 @@ function _worktree {
     if [ -n "$VERBOSE" ]; then
         set -x
     fi
-    branchname="$1"
+
+    worktree_name="$1"
+
+    # If no branch name specified via -b flag, use worktree name as branch name
+    if [ -z "$BRANCH_NAME" ]; then
+        branchname="$worktree_name"
+    else
+        branchname="$BRANCH_NAME"
+    fi
 
     # Replace slashes with underscores. If there's no slash, dirname will equal
-    # branchname. So "alu/something-other" becomes "alu_something-other", but
+    # worktree_name. So "feature/something-other" becomes "feature_something-other", but
     # "quick-fix" stays unchanged
     # https://www.tldp.org/LDP/abs/html/parameter-substitution.html
-    dirname=${branchname//\//_}
+    dirname=${worktree_name//\//_}
     
     is_worktree=$(git rev-parse --is-inside-work-tree)
-    if $is_worktree; then        
-        parent_dir=".."    
-    else        
+    if $is_worktree; then
+        parent_dir=".."
+    else
         parent_dir="."
     fi
 
-    # if the branch name already exists, we want to check it out. Otherwise,
-    # create a new branch. I'm sure there's probably a way to do that in one
-    # command, but I'm done fiddling with git at this point
-    #
-    # As far as I can tell, we have to check locally and remotely separately if
-    # we want to be accurate. See https://stackoverflow.com/a/75040377 for the
-    # reasoning here. Also this has some caveats, but probably works well
-    # enough :shrug:
-    #
-    # if the branch exists locally:
-    if git for-each-ref --format='%(refname:lstrip=2)' refs/heads | grep -E "^$branchname$" > /dev/null 2>&1; then
-        if ! git worktree add "$parent_dir/$dirname" "$branchname"; then
-            die "failed to create git worktree $branchname"
+    # Validate commit-ish if provided
+    if [ -n "$COMMIT_ISH" ]; then
+        if ! git rev-parse --verify "$COMMIT_ISH^{commit}" >/dev/null 2>&1; then
+            die "Invalid commit-ish: $COMMIT_ISH"
         fi
-    # if the branch exists on a remote:
-    elif git for-each-ref --format='%(refname:lstrip=3)' refs/remotes/origin | grep -E "^$branchname$" > /dev/null 2>&1; then
-        if ! git worktree add "$parent_dir/$dirname" "$branchname"; then
-            die "failed to create git worktree $branchname"
+    fi
+
+    # Handle worktree creation based on whether commit-ish is provided
+    if [ -n "$COMMIT_ISH" ]; then
+        # When commit-ish is provided, always create a new branch from that commit-ish
+        if ! git worktree add -b "$branchname" "$parent_dir/$dirname" "$COMMIT_ISH"; then
+            die "failed to create git worktree $branchname from $COMMIT_ISH"
         fi
     else
-        # otherwise, create a new branch
-        if ! git worktree add -b "$branchname" "$parent_dir/$dirname"; then
-            die "failed to create git worktree $branchname"
+        # Original logic: check if branch exists locally/remotely, or create new
+        # if the branch exists locally:
+        if git for-each-ref --format='%(refname:lstrip=2)' refs/heads | grep -E "^$branchname$" > /dev/null 2>&1; then
+            if ! git worktree add "$parent_dir/$dirname" "$branchname"; then
+                die "failed to create git worktree $branchname"
+            fi
+        # if the branch exists on a remote:
+        elif git for-each-ref --format='%(refname:lstrip=3)' refs/remotes/origin | grep -E "^$branchname$" > /dev/null 2>&1; then
+            if ! git worktree add "$parent_dir/$dirname" "$branchname"; then
+                die "failed to create git worktree $branchname"
+            fi
+        else
+            # otherwise, create a new branch
+            if ! git worktree add -b "$branchname" "$parent_dir/$dirname"; then
+                die "failed to create git worktree $branchname"
+            fi
         fi
     fi
 
@@ -162,22 +186,22 @@ function _worktree {
     
     case "$find_variant" in
         "bsd")
-            files_to_copy=( $(find -E $copy_source -not -path '*node_modules*' -and \
+            files_to_copy=( $(find -E "$copy_source" -not -path '*node_modules*' -and \
                     -iregex '.*\/\.(envrc|env|env.local|tool-versions|mise.toml)' ) )
             ;;
         "gnu")
-            files_to_copy=( $(find $copy_source -not -path '*node_modules*' -and \
+            files_to_copy=( $(find "$copy_source" -not -path '*node_modules*' -and \
                     -regextype posix-extended -iregex '.*\/\.(envrc|env|env.local|tool-versions|mise.toml)' ) )
             ;;
         "basic")
             # Fallback to basic find without extended regex - use simple name matching
-            files_to_copy=( $(find $copy_source -not -path '*node_modules*' \
+            files_to_copy=( $(find "$copy_source" -not -path '*node_modules*' \
                     \( -name '.envrc' -o -name '.env' -o -name '.env.local' -o -name '.tool-versions' -o -name 'mise.toml' \) ) )
             ;;
     esac
 
     for f in "${files_to_copy[@]}"; do
-      target_path="${f#$copy_source/}"
+      target_path="${f#"$copy_source"/}"
       cp_cow "$f" "$parent_dir/$dirname/$target_path"
     done
 
@@ -191,8 +215,8 @@ function _worktree {
         warn "Unable to run git pull, there may not be an upstream"
     fi
 
-    # if there was an envrc file, tell direnv that it's ok to run it
-    if [ -f "$parent_dir/$dirname/.envrc" ]; then
+    # if there was an envrc file, tell direnv -- if it's installed -- that it's ok to run it
+    if [ type -t direnv 2>/dev/null && -f "$parent_dir/$dirname/.envrc" ]; then
         direnv allow "$parent_dir/$dirname"
     fi
         
@@ -207,6 +231,14 @@ while true; do
         -v | --verbose)
             VERBOSE=true
             shift
+            ;;
+        -b | --branch)
+            BRANCH_NAME="$2"
+            shift 2
+            ;;
+        -c | --commit)
+            COMMIT_ISH="$2"
+            shift 2
             ;;
         *)
             break
