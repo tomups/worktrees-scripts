@@ -26,7 +26,7 @@ This will:
 - fetch all branches
 - add a worktree for the default branch
 
-`git wtadd <worktree-name> [branch]`
+`git wtadd <worktree-name> [-b branch]`
 
 Create a git worktree named `worktree-name` based on `branch`. If no branch is provided, it defaults to the current branch.
 
